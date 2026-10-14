@@ -29,8 +29,10 @@ import org.testng.annotations.Parameters;
 import org.testng.annotations.Test;
 import org.wso2.carbon.CarbonConstants;
 import org.wso2.carbon.identity.application.authentication.framework.config.model.SequenceConfig;
+import org.wso2.carbon.identity.application.authentication.framework.config.model.graph.js.base.JsBaseAuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.internal.FrameworkServiceDataHolder;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.common.model.LocalAndOutboundAuthenticationConfig;
 import org.wso2.carbon.identity.application.common.model.ServiceProvider;
 import org.wso2.carbon.identity.application.common.model.script.AuthenticationScriptConfig;
@@ -230,6 +232,37 @@ public class DevicePolicyComplianceFunctionImplTest extends JsSequenceHandlerAbs
         Assert.assertEquals(capturedDeviceData, deviceData);
         // The evaluator mutates the device data it receives, so the context copy must not be handed over as is.
         Assert.assertNotSame(capturedDeviceData, deviceData);
+    }
+
+    @Test
+    public void testIsCompliantWithDeviceOfAnotherUser() throws Exception {
+
+        Map<String, Object> deviceData = deviceData();
+        deviceData.put(FrameworkConstants.DEVICE_OWNER_ID, "another-user-id");
+        AuthenticationContext context = getAuthenticationContextForSP(POLICY_NAME, deviceData);
+        handle(context);
+
+        Assert.assertEquals(context.getSelectedAcr(), POLICY_NAME + ":device_not_owned");
+        verifyNoInteractions(devicePolicyEvaluator);
+    }
+
+    @Test
+    public void testIsCompliantWithDeviceOfAuthenticatedUser() throws Exception {
+
+        when(devicePolicyEvaluator.evaluate(anyString(), anyMap(), any(), anyString()))
+                .thenReturn(DevicePolicyEvaluationResult.compliant(POLICY_NAME));
+        Map<String, Object> deviceData = deviceData();
+        deviceData.put(FrameworkConstants.DEVICE_OWNER_ID, "test-user-id");
+        AuthenticatedUser authenticatedUser = new AuthenticatedUser();
+        authenticatedUser.setUserId("test-user-id");
+        AuthenticationContext context = new AuthenticationContext();
+        context.setTenantDomain(TENANT_DOMAIN);
+        context.setProperty(FrameworkConstants.DEVICE_DATA, deviceData);
+        context.setSubject(authenticatedUser);
+        JsBaseAuthenticationContext jsContext = mock(JsBaseAuthenticationContext.class);
+        when(jsContext.getWrapped()).thenReturn(context);
+
+        Assert.assertNull(new DevicePolicyComplianceFunctionImpl().isCompliant(jsContext, POLICY_NAME));
     }
 
     private Map<String, Object> deviceData() {

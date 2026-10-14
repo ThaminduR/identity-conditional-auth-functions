@@ -22,6 +22,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.graalvm.polyglot.HostAccess;
 import org.wso2.carbon.identity.application.authentication.framework.config.model.graph.js.base.JsBaseAuthenticationContext;
+import org.wso2.carbon.identity.application.authentication.framework.exception.UserIdNotFoundException;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.conditional.auth.functions.devicepolicy.internal.DevicePolicyFunctionsServiceHolder;
@@ -67,6 +69,13 @@ public class DevicePolicyComplianceFunctionImpl implements DevicePolicyComplianc
             @SuppressWarnings("unchecked")
             Map<String, Object> deviceData = new HashMap<>((Map<String, Object>) data);
 
+            if (!isDeviceOwnedByAuthenticatedUser(context, deviceData)) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("The device is not registered to the authenticated user. Policy: " + policyName);
+                }
+                return policyName + ":device_not_owned";
+            }
+
             String appId = context.getWrapped().getServiceProviderResourceId();
 
             DevicePolicyEvaluationResult result = DevicePolicyFunctionsServiceHolder.getInstance()
@@ -93,6 +102,33 @@ public class DevicePolicyComplianceFunctionImpl implements DevicePolicyComplianc
         } catch (DevicePolicyException e) {
             LOG.error("Error while evaluating device policy: " + policyName);
             return policyName + ":evaluation_error";
+        }
+    }
+
+    /**
+     * Check that the device that signed the device token is registered to the user authenticated so far. The check
+     * is skipped until a user is identified in the flow, or when the device data does not carry the device owner.
+     *
+     * @param context    Authentication context.
+     * @param deviceData Verified device data.
+     * @return False if a user is identified and the device is registered to a different user.
+     */
+    private boolean isDeviceOwnedByAuthenticatedUser(JsBaseAuthenticationContext context,
+                                                     Map<String, Object> deviceData) {
+
+        Object deviceOwnerId = deviceData.get(FrameworkConstants.DEVICE_OWNER_ID);
+        AuthenticatedUser authenticatedUser = context.getWrapped().getLastAuthenticatedUser();
+        if (deviceOwnerId == null || authenticatedUser == null) {
+            return true;
+        }
+        try {
+            return deviceOwnerId.toString().equals(authenticatedUser.getUserId());
+        } catch (UserIdNotFoundException e) {
+            // A user that cannot be resolved to a local user id cannot own a registered device.
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Unable to resolve the user id of the authenticated user to verify device ownership.");
+            }
+            return false;
         }
     }
 
