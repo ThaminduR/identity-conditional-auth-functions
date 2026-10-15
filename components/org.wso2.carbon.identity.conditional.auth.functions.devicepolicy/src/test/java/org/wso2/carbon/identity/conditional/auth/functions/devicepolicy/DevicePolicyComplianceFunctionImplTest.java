@@ -143,7 +143,7 @@ public class DevicePolicyComplianceFunctionImplTest extends JsSequenceHandlerAbs
     @Test(dataProvider = "evaluationResultProvider")
     public void testIsCompliant(DevicePolicyEvaluationResult evaluationResult, String expectedAcr) throws Exception {
 
-        when(devicePolicyEvaluator.evaluate(anyString(), anyMap(), any(), anyString())).thenReturn(evaluationResult);
+        when(devicePolicyEvaluator.evaluateByPolicyName(anyString(), anyMap(), any(), anyString())).thenReturn(evaluationResult);
 
         AuthenticationContext context = getAuthenticationContextForSP(POLICY_NAME, deviceData());
         handle(context);
@@ -175,7 +175,7 @@ public class DevicePolicyComplianceFunctionImplTest extends JsSequenceHandlerAbs
     @Test
     public void testIsCompliantWithEmptyDeviceData() throws Exception {
 
-        when(devicePolicyEvaluator.evaluate(anyString(), anyMap(), any(), anyString()))
+        when(devicePolicyEvaluator.evaluateByPolicyName(anyString(), anyMap(), any(), anyString()))
                 .thenReturn(DevicePolicyEvaluationResult.incompleteDeviceData(POLICY_NAME,
                         Collections.singletonList("platform")));
 
@@ -206,7 +206,7 @@ public class DevicePolicyComplianceFunctionImplTest extends JsSequenceHandlerAbs
     @Test(dataProvider = "evaluationFailureProvider")
     public void testIsCompliantWithEvaluationFailure(Exception exception, String expectedAcr) throws Exception {
 
-        when(devicePolicyEvaluator.evaluate(anyString(), anyMap(), any(), anyString())).thenThrow(exception);
+        when(devicePolicyEvaluator.evaluateByPolicyName(anyString(), anyMap(), any(), anyString())).thenThrow(exception);
 
         AuthenticationContext context = getAuthenticationContextForSP(POLICY_NAME, deviceData());
         handle(context);
@@ -217,7 +217,7 @@ public class DevicePolicyComplianceFunctionImplTest extends JsSequenceHandlerAbs
     @Test
     public void testEvaluatorInvokedWithContextValues() throws Exception {
 
-        when(devicePolicyEvaluator.evaluate(anyString(), anyMap(), any(), anyString()))
+        when(devicePolicyEvaluator.evaluateByPolicyName(anyString(), anyMap(), any(), anyString()))
                 .thenReturn(DevicePolicyEvaluationResult.compliant(POLICY_NAME));
 
         Map<String, Object> deviceData = deviceData();
@@ -225,7 +225,7 @@ public class DevicePolicyComplianceFunctionImplTest extends JsSequenceHandlerAbs
         handle(context);
 
         ArgumentCaptor<Map<String, Object>> deviceDataCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(devicePolicyEvaluator).evaluate(eq(POLICY_NAME), deviceDataCaptor.capture(), eq(APP_RESOURCE_ID),
+        verify(devicePolicyEvaluator).evaluateByPolicyName(eq(POLICY_NAME), deviceDataCaptor.capture(), eq(APP_RESOURCE_ID),
                 eq(TENANT_DOMAIN));
 
         Map<String, Object> capturedDeviceData = deviceDataCaptor.getValue();
@@ -249,7 +249,7 @@ public class DevicePolicyComplianceFunctionImplTest extends JsSequenceHandlerAbs
     @Test
     public void testIsCompliantWithDeviceOfAuthenticatedUser() throws Exception {
 
-        when(devicePolicyEvaluator.evaluate(anyString(), anyMap(), any(), anyString()))
+        when(devicePolicyEvaluator.evaluateByPolicyName(anyString(), anyMap(), any(), anyString()))
                 .thenReturn(DevicePolicyEvaluationResult.compliant(POLICY_NAME));
         Map<String, Object> deviceData = deviceData();
         deviceData.put(FrameworkConstants.DEVICE_OWNER_ID, "test-user-id");
